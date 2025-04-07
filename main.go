@@ -137,18 +137,49 @@ func add_comment(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func fetch_users(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	rows, _ := conn.Query(context.Background(), `SELECT "personId", "username", "type"::varchar, "email", "password"
+FROM public."Personne"`)
+	var users []map[string]interface{}
+
+	for rows.Next() {
+		var id int
+		var username, email, password string
+		var userType string
+
+		rows.Scan(&id, &username, &userType, &email, &password)
+
+		users = append(users, map[string]interface{}{
+			"personId": id,
+			"username": username,
+			"type":     userType,
+			"email":    email,
+			"password": password,
+		})
+	}
+
+	json.NewEncoder(w).Encode(users)
+}
+
 func main() {
 
 	http.HandleFunc("/add_user", add_user)
 	http.HandleFunc("/add_guest", add_guest)
 	http.HandleFunc("/add_product", add_product)
 	http.HandleFunc("/add_comment", add_comment)
+
 	// http.HandleFunc("/report_product", report_product);
 	// http.HandleFunc("/buy_product", buy_product);
 	// http.HandleFunc("/login", login);
 	// http.HandleFunc("/fetch_products", fetch_products);
 	// http.HandleFunc("/fetch_user_products", fetch_products);
-	// http.HandleFunc("/fetch_users", fetch_users);
+	http.HandleFunc("/fetch_users", fetch_users)
 	// http.HandleFunc("/fetch_comments", fetch_comments);
 	// http.HandleFunc("/fetch_reports", fetch_reports);
 	// http.HandleFunc("/fetch_user", root);
