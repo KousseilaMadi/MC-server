@@ -137,6 +137,75 @@ func add_comment(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func report_product(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var jsonObj map[string]interface{}
+	json.Unmarshal(body, &jsonObj)
+
+	selectPersonId := jsonObj["selectPersonId"].(string)
+	ProductId := jsonObj["ProductId"].(string)
+	personUsername := jsonObj["personUsername"].(string)
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	// var selectPersonId string = "(SELECT \"personId\" FROM public.\"Personne\" WHERE username ='" + personUsername + "')"
+	// fmt.Println("Sous-requête pour personId:", selectPersonId)
+
+	query := "INSERT INTO public.\"Signaler\"(\"personId\", \"username\", \"productId\") VALUES(" + selectPersonId + ", '" + personUsername + "', '" + ProductId + "')"
+	fmt.Println("Requête complète:", query)
+
+	_, err1 := conn.Exec(context.Background(), query)
+	if err1 != nil {
+		fmt.Println("failed to insert, err:", err1)
+	} else {
+		fmt.Println("Insertion réussie.")
+	}
+}
+
+func buy_product(w http.ResponseWriter, r *http.Request) {
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var jsonObj map[string]interface{}
+	json.Unmarshal(body, &jsonObj)
+
+	ProductId := jsonObj["ProductId"].(string)
+	personUsername := jsonObj["personUsername"].(string)
+	cardNumber := jsonObj["cardNumber"].(string)
+	CVV := jsonObj["CVV"].(string)
+	expDate := jsonObj["expDate"].(string)
+	name := jsonObj["name"].(string)
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	var selectPersonId string = "(SELECT \"personId\" FROM public.\"Personne\" WHERE username ='" + personUsername + "')"
+	fmt.Println("Sous-requête pour personId:", selectPersonId)
+
+	query := "INSERT INTO public.\"Acheter\"(\"personId\", \"username\", \"productId\", date, \"cardNumber\", \"CVV\", \"expDate\", name) VALUES(" +
+		selectPersonId + ", '" + personUsername + "', '" + ProductId + "', NOW(), '" + cardNumber + "', '" + CVV + "', '" + expDate + "', '" + name + "')"
+
+	fmt.Println("Requête complète:", query)
+
+	_, err1 := conn.Exec(context.Background(), query)
+	if err1 != nil {
+		fmt.Println("failed to insert, err:", err1)
+	} else {
+		fmt.Println("Insertion réussie.")
+	}
+}
 func fetch_users(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := pgx.Connect(context.Background(), connUrl)
@@ -144,8 +213,7 @@ func fetch_users(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("failed to connect to mcdb, err:", err)
 	}
 
-	rows, _ := conn.Query(context.Background(), `SELECT "personId", "username", "type"::varchar, "email", "password"
-FROM public."Personne"`)
+	rows, _ := conn.Query(context.Background(), `SELECT "personId", "username", "type"::varchar, "email", "password" FROM public."Personne"`)
 	var users []map[string]interface{}
 
 	for rows.Next() {
@@ -167,20 +235,50 @@ FROM public."Personne"`)
 	json.NewEncoder(w).Encode(users)
 }
 
+func fetch_comments(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	rows, _ := conn.Query(context.Background(), `SELECT "personId", "username", "productId","date"::varchar, "text" FROM public."Commenter"`)
+	var comments []map[string]interface{}
+
+	for rows.Next() {
+		var personId, productId int
+		var username, text, date string
+		// var date time.Time
+
+		rows.Scan(&personId, &username, &productId, &date, &text)
+
+		comments = append(comments, map[string]interface{}{
+			"personId":  personId,
+			"username":  username,
+			"productId": productId,
+			"date":      date,
+			"text":      text,
+		})
+	}
+
+	json.NewEncoder(w).Encode(comments)
+}
+
 func main() {
 
 	http.HandleFunc("/add_user", add_user)
 	http.HandleFunc("/add_guest", add_guest)
 	http.HandleFunc("/add_product", add_product)
 	http.HandleFunc("/add_comment", add_comment)
+	http.HandleFunc("/report_product", report_product)
+	http.HandleFunc("/buy_product", buy_product)
+	http.HandleFunc("/fetch_users", fetch_users)
+	http.HandleFunc("/fetch_comments", fetch_comments)
 
-	// http.HandleFunc("/report_product", report_product);
-	// http.HandleFunc("/buy_product", buy_product);
 	// http.HandleFunc("/login", login);
 	// http.HandleFunc("/fetch_products", fetch_products);
 	// http.HandleFunc("/fetch_user_products", fetch_products);
-	http.HandleFunc("/fetch_users", fetch_users)
-	// http.HandleFunc("/fetch_comments", fetch_comments);
+
 	// http.HandleFunc("/fetch_reports", fetch_reports);
 	// http.HandleFunc("/fetch_user", root);
 	// http.HandleFunc("/update_user", root);
