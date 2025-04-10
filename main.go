@@ -263,6 +263,109 @@ func fetch_comments(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(comments)
 }
+func fetch_products(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	rows, _ := conn.Query(context.Background(), `SELECT "productId", "title", "description","category", "source"::varchar,"email", "price" ,"currency","phoneNumber","personId", "username", "date"::varchar  FROM public."Produit"`)
+	var products []map[string]interface{}
+
+	for rows.Next() {
+		var personId, productId int
+		var title, description, category, source, email, price, currency, phoneNumber, username, date string
+
+		rows.Scan(&productId,
+			&title,
+			&description,
+			&category,
+			&source,
+			&email,
+			&price,
+			&currency,
+			&phoneNumber,
+			&personId,
+			&username,
+			&date)
+
+		products = append(products, map[string]interface{}{
+			"productId":   productId,
+			"title":       title,
+			"description": description,
+			"category":    category,
+			"source":      source,
+			"email":       email,
+			"price":       price,
+			"currency":    currency,
+			"phoneNumber": phoneNumber,
+			"personId":    personId,
+			"username":    username,
+			"date":        date,
+		})
+	}
+
+	json.NewEncoder(w).Encode(products)
+}
+
+func fetch_reports(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	rows, _ := conn.Query(context.Background(), `SELECT "personId", "productId", "username"  FROM public."Signaler"`)
+	var reports []map[string]interface{}
+
+	for rows.Next() {
+		var personId, productId int
+		var username string
+
+		rows.Scan(&personId, &productId, &username)
+
+		reports = append(reports, map[string]interface{}{
+
+			"personId":  personId,
+			"productId": productId,
+			"username":  username,
+		})
+	}
+
+	json.NewEncoder(w).Encode(reports)
+}
+func fetch_payements(w http.ResponseWriter, r *http.Request) {
+
+	conn, err := pgx.Connect(context.Background(), connUrl)
+	if err != nil {
+		log.Fatal("failed to connect to mcdb, err:", err)
+	}
+
+	rows, _ := conn.Query(context.Background(), `SELECT "personId", "username", "productId","date"::varchar,"cardNumber", "CVV", "expDate" ,"name"  FROM public."Acheter"`)
+	var payements []map[string]interface{}
+
+	for rows.Next() {
+		var personId, productId int
+		var username, date, cardNumber, CVV, expDate, name string
+
+		rows.Scan(&personId, &username, &productId, &date, &cardNumber, &CVV, &expDate, &name)
+
+		payements = append(payements, map[string]interface{}{
+
+			"personId":   personId,
+			"username":   username,
+			"productId":  productId,
+			"date":       date,
+			"cardNumber": cardNumber,
+			"CVV":        CVV,
+			"expDate":    expDate,
+			"name":       name,
+		})
+	}
+
+	json.NewEncoder(w).Encode(payements)
+}
 
 func main() {
 
@@ -274,12 +377,14 @@ func main() {
 	http.HandleFunc("/buy_product", buy_product)
 	http.HandleFunc("/fetch_users", fetch_users)
 	http.HandleFunc("/fetch_comments", fetch_comments)
+	http.HandleFunc("/fetch_products", fetch_products)
+	http.HandleFunc("/fetch_reports", fetch_reports)
+	http.HandleFunc("/fetch_payements", fetch_payements)
 
 	// http.HandleFunc("/login", login);
-	// http.HandleFunc("/fetch_products", fetch_products);
+
 	// http.HandleFunc("/fetch_user_products", fetch_products);
 
-	// http.HandleFunc("/fetch_reports", fetch_reports);
 	// http.HandleFunc("/fetch_user", root);
 	// http.HandleFunc("/update_user", root);
 	// http.HandleFunc("/", root);
